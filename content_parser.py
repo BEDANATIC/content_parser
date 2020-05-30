@@ -26,8 +26,14 @@ class Parser():
             'referer': 'https://prnt.sc/',
             'accept-language': 'ru,en;q=0.9,la;q=0.8'})
 
-    def generate_url(self):
-        VALID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    def generate_url(self, lowercase=True, uppercase=True, numbers=True):
+        letters_lower = 'abcdefghijklmnopqrstuvwxyz'
+        letters_upper = letters_lower.upper()
+        numbers = '0123456789'
+        VALID_CHARS = ''
+        VALID_CHARS += letters_lower if lowercase else ''
+        VALID_CHARS += letters_upper if uppercase else ''
+        VALID_CHARS += numbers if numbers else ''
         return self.host + ''.join([random.choice(VALID_CHARS) for _ in range(self.slug_len)])
 
     def save_content(self, parsed_content):
@@ -74,7 +80,7 @@ class PrntscParser(Parser):
         return re.compile('\w*\.\w*\Z').findall(url)[0]
 
     def download_content(self):
-        response = self.session.get(self.generate_url())
+        response = self.session.get(self.generate_url(uppercase=False))
         response.raise_for_status()
         img_url = self.extract_image_url(response.text)
         if img_url != None:
