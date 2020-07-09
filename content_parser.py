@@ -5,6 +5,7 @@ import json
 import abc
 import os
 import re
+from numpy import base_repr
 
 import requests
 
@@ -75,12 +76,16 @@ class PrntscParser(Parser):
             return matches[0][:-5]
         else:
             return None
-    
+
     def extract_image_name(self, url):
         return re.compile('\w*\.\w*\Z').findall(url)[0]
 
-    def download_content(self):
-        response = self.session.get(self.generate_url(uppercase=False))
+    def generate_url(self, freshets_shortcode):
+        for decimal_counter in range(int(freshets_shortcode, 36), 0, -1):
+            yield self.host + base_repr(decimal_counter, 36).lower()
+
+    def download_content(self, url):
+        response = self.session.get(url)
         response.raise_for_status()
         img_url = self.extract_image_url(response.text)
         if img_url != None:
@@ -92,8 +97,10 @@ class PrntscParser(Parser):
             return None
 
     def start(self):
-        while True:
-            content = self.download_content()
+        #start url (from new to old uploads)
+        freshets_shortcode = 'ta78nv'
+        for url in self.generate_url(freshets_shortcode):
+            content = self.download_content(url)
             if content != None:
                 self.save_content(content)
 
@@ -107,9 +114,9 @@ class CloudAppParser(Parser):
     def __init__(self, folder_name='myclly'):
         super().__init__('https://my.cl.ly/v2/items/', 4, folder_name)
     
-    def download_content(self):
+    def download_content(self, url):
         try:
-            response = self.session.get(self.generate_url())
+            response = self.session.get(url)
             item_info = json.loads(response.text)
             content_url = item_info['item']['source_url']
             content = self.session.get(content_url).content
@@ -119,7 +126,7 @@ class CloudAppParser(Parser):
 
     def start(self):
         while True:
-            content = self.download_content()
+            content = self.download_content(self.generate_url())
             if content != None:
                 self.save_content(content)
 
@@ -129,11 +136,14 @@ class CloudAppParser(Parser):
     __str__ = __repr__
 
 
-if __name__=='__main__':
+def start_parsing():
     parsers = [CloudAppParser(), PrntscParser()]
     for parser in parsers:
         th = threading.Thread(target=parser.start, daemon=False)
         th.start()
         print(f'{parser} started ({th.name})')
-
     print('Parsers are working...')
+    
+start_parsing()
+
+
